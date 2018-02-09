@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+	<body>
+		<h1>WebSocket RX/TX Test Performance Tool</h1>
+		
+		<script language="javascript" type="text/javascript">
+			
+			var ipformat = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
+			function TXconnect() {
+				if(!ipaddr.value.match(ipformat)){  
+ 					alert("You have entered an invalid IP address!");  
+ 					return false;
+ 				}   				
+
+ 				if((port.value > 65535)|| (port.value < 1)){
+ 					alert("You have entered an invalid Port number! (0<PortNum<65535)");  
+ 					return false;
+ 				}
+ 								
+				var wsurl="ws://"+ipaddr.value+":"+port.value;
+				ws = new WebSocket(wsurl);
+				//ws.binaryType = 'blob';
+				ws.binaryType = "arraybuffer";
+				ws.onopen = function(){
+					var reader = new FileReader();
+					var file = document.querySelector('input[type="file"]').files[0];
+					console.log(file);
+						
+
+					reader.onload = function(event) {
+						var contents = event.target.result;	
+						var byteArray = new Uint8Array(contents);
+						//console.log("byteArray: ",byteArray);
+						ws.send(byteArray);
+						//ws.close()
+						
+					}
+					reader.readAsArrayBuffer(file);
+				};
+				ws.onerror = function() { alert("web socket error!"); };
+				ws.onmessage = function(e) {};
+			}
+
+			function RXconnect() {
+				if(!ipaddr.value.match(ipformat)){  
+ 					alert("You have entered an invalid IP address!");  
+ 					return false;
+ 				}   				
+ 				if((port.value > 65535)|| (port.value < 1)){
+ 					alert("You have entered an invalid Port number! (0<PortNum<65535)");  
+ 					return false;
+ 				}
+ 								
+				var wsurl="ws://"+ipaddr.value+":"+port.value;
+				ws = new WebSocket(wsurl);
+				ws.onopen = function(){}; 
+				ws.onerror = function() { alert("web socket error!"); };
+				ws.onmessage = function(e) {
+					var reader = new FileReader();
+					reader.onload = function(event) {
+						var contents = event.target.result;        
+						webSocketPic.src=contents;
+					}
+    			reader.readAsDataURL(e.data);
+    			ws.send("amiok");    			   			
+				};
+			}
+
+		</script>
+		<table>
+			<font color="blue" font size="5">Step 1: Enter IP Address and Port</font>
+			<div>
+			<p><b>IP Address:</b><input value='192.168.0.164' type='text' id='ipaddr'/></p>
+			<p><b>Port:</b><input type='number' id='port' value="8888"/></p>
+			</div>
+			<div>
+			<font color="Red" font size="5">Step 2: Client(TX) send file to BMC(RX)</font>
+			<p><button onclick="TXconnect();">TX Connect to BMC</button></p>
+			<p><input type="file" id="input" name="myFiles"></p>
+			</div>
+			<div>
+			<font color="Red" font size="5">Step 2: Client(RX) receive file from BMC(TX)</font>
+			<p><tr><td><button onclick="RXconnect();">RX Connect BMC</button></td></tr></p>
+			<p><tr><td><img id="webSocketPic"></td></tr></p>
+			</div>
+			
+		</table>		
+		<p></p>		
+	</body>
+</html>
