@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+	<body>
+		<h1>WebSocket RX/TX Test Performance Tool</h1>
+		
+		<script language="javascript" type="text/javascript">
+			
+			var ipformat = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
+			function TXconnect(){
+
+				var blockSize = 2048 * 64;
+				var byteArray;
+				var sendSize = 0;
+				var remainSize = 0;
+				var totalLength;
+
+				if(!ipaddr.value.match(ipformat)){  
+ 					alert("You have entered an invalid IP address!");  
+ 					return false;
+ 				}   				
+
+ 				if((port.value > 65535)|| (port.value < 1)){
+ 					alert("You have entered an invalid Port number! (0<PortNum<65535)");  
+ 					return false;
+ 				}
+ 								
+				var wsurl="ws://"+ipaddr.value+":"+port.value;
+				ws = new WebSocket(wsurl);
+				//ws.binaryType = "arraybuffer";
+				ws.onopen = function(){
+					var reader = new FileReader();
+					var file = document.querySelector('input[type="file"]').files[0];
+					totalLength = file.size;
+
+					reader.onload = function(event) {
+						var contents = event.target.result;	
+						byteArray = new Uint8Array(contents);
+						if(totalLength < blockSize)
+						{
+							console.log("totalLength < blockSize");
+							var sendFile = byteArray.slice(0);
+						}
+						else
+						{
+							var sendFile = byteArray.slice(0, blockSize);
+						}
+						//console.log("Data: " + sendFile);
+						ws.send(sendFile);
+						remainSize = totalLength - blockSize;
+
+						if(totalLength <= (sendSize + blockSize))
+						{
+							console.log("Websocket close!!!");
+							ws.close();
+						}
+					}
+					reader.readAsArrayBuffer(file);
+				};
+
+				ws.onerror = function() { alert("web socket error!"); };
+
+				ws.onmessage = function(e) {
+					if(totalLength <= (sendSize + blockSize))
+					{
+						console.log("Websocket close!!!");
+						ws.close();
+					}
+					else{
+						/* Receice server ACK */
+						var reader = new FileReader();
+						reader.onload = function(event) {
+							var contents = event.target.result;        
+							//console.log("server ACK: " + contents);
+
+							//console.log(sendSize);
+							sendSize += blockSize;
+							if(remainSize < blockSize)
+							{
+								var sendFile2 = byteArray.slice(sendSize);
+							}else{
+								var sendFile2 = byteArray.slice(sendSize, sendSize + blockSize);
+							}
+							//console.log("sendFile2: " + sendFile2);
+							ws.send(sendFile2);
+							remainSize -= blockSize;
+							//console.log("remainSize: " + remainSize);
+							//console.log("totalLength: " + totalLength,"sendSize + blockSize - 1: " + (sendSize + blockSize));
+
+						}
+
+						reader.readAsText(e.data);
+
+					/*	if(totalLength <= (sendSize + blockSize))
+						{
+							console.log("Websocket close!!!");
+							ws.close();
+						}*/
+					}
+				};
+			}
+
+			function RXconnect() {
+				if(!ipaddr.value.match(ipformat)){  
+ 					alert("You have entered an invalid IP address!");  
+ 					return false;
+ 				}   				
+ 				if((port.value > 65535)|| (port.value < 1)){
+ 					alert("You have entered an invalid Port number! (0<PortNum<65535)");  
+ 					return false;
+ 				}
+ 								
+				var wsurl="ws://"+ipaddr.value+":"+port.value;
+				ws = new WebSocket(wsurl);
+				ws.onopen = function(){}; 
+				ws.onerror = function() { alert("web socket error!"); };
+				ws.onmessage = function(e) {
+					var reader = new FileReader();
+					reader.onload = function(event) {
+						var contents = event.target.result;        
+						webSocketPic.src=contents;
+					}
+    			reader.readAsDataURL(e.data);
+    			ws.send("amiok");    			   			
+				};
+			}
+
+		</script>
+		<table>
+			<font color="blue" font size="5">Step 1: Enter IP Address and Port</font>
+			<div>
+			<p><b>IP Address:</b><input value='192.168.0.164' type='text' id='ipaddr'/></p>
+			<p><b>Port:</b><input type='number' id='port' value="8888"/></p>
+			</div>
+			<div>
+			<font color="Red" font size="5">Step 2: Client(TX) send file to BMC(RX)</font>
+			<p><button onclick="TXconnect();">TX Connect to BMC</button></p>
+			<p><input type="file" id="input" name="myFiles"></p>
+			</div>
+			<div>
+			<font color="Red" font size="5">Step 2: Client(RX) receive file from BMC(TX)</font>
+			<p><tr><td><button onclick="RXconnect();">RX Connect BMC</button></td></tr></p>
+			<p><tr><td><img id="webSocketPic"></td></tr></p>
+			</div>
+			
+		</table>		
+		<p></p>		
+	</body>
+</html>
